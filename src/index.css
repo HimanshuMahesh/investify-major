@@ -1,0 +1,170 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+ 
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+ 
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+ 
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+ 
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+ 
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+ 
+    --primary: 164 55% 40%;
+    --primary-foreground: 0 0% 98%;
+ 
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+ 
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+ 
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+ 
+    --ring: 240 5.9% 10%;
+ 
+    --radius: 0.5rem;
+  }
+ 
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+ 
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+ 
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+ 
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+ 
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+ 
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+ 
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+ 
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+ 
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+ 
+    --ring: 240 4.9% 83.9%;
+  }
+}
+ 
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: 'Manrope', sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-outfit;
+  }
+}
+
+@font-face {
+  font-family: 'Garrett';
+  src: url('/fonts/Garrett-Semibold.woff2') format('woff2'),
+       url('/fonts/Garrett-Semibold.woff') format('woff');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Garrett';
+  src: url('/fonts/Garrett-Bold.woff2') format('woff2'),
+       url('/fonts/Garrett-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer components {
+  .container-custom {
+    @apply px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full;
+  }
+
+  .heading-xl {
+    @apply text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight;
+  }
+
+  .heading-lg {
+    @apply text-3xl sm:text-4xl font-bold tracking-tight;
+  }
+
+  .heading-md {
+    @apply text-2xl sm:text-3xl font-bold;
+  }
+
+  .animate-delayed-fade-in {
+    @apply opacity-0;
+    animation: fadeIn 0.5s ease-out forwards;
+    animation-delay: 0.2s;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-md hover:border-investify-primary/50 hover:bg-gradient-to-br hover:from-white hover:to-green-50/30;
+  }
+
+  .font-garrett {
+    font-family: 'Garrett', sans-serif;
+    font-weight: 700;
+  }
+
+  .font-outfit {
+    font-family: 'Outfit', sans-serif;
+  }
+}
+
+/* Add soft green color for hover effects */
+@layer utilities {
+  .bg-F2FCE2 {
+    background-color: #F2FCE2;
+  }
+  
+  .hover-green-accent {
+    @apply hover:border-investify-primary hover:bg-green-50 transition-colors;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-investify-primary to-investify-navy bg-clip-text text-transparent;
+  }
+  
+  .card-gradient {
+    background: linear-gradient(145deg, #ffffff, #f0f9f7);
+  }
+
+  .statistic-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all duration-200 hover:border-investify-primary/30;
+  }
+}

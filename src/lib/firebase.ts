@@ -15,7 +15,7 @@ console.log('Environment variables:', {
 });
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCtZPAJXuEZO7GUmUdiZjNLnXtATEDej0g",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "investify-7818a.firebaseapp.com",
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "investify-7818a",
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "investify-7818a.firebasestorage.app",

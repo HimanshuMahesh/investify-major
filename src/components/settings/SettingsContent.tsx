@@ -1,6 +1,7 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Tabs,
   TabsContent,
@@ -27,12 +28,23 @@ import { useToast } from "@/components/ui/use-toast";
 const SettingsContent = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user, userProfile, updateUserProfile, logout } = useAuth();
   
   // Profile settings
-  const [name, setName] = useState("Raj Sharma");
-  const [email, setEmail] = useState("raj@investify.com");
-  const [phone, setPhone] = useState("+91 9876543210");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [location, setLocation] = useState("Mumbai");
+
+  // Load user data from Firebase
+  useEffect(() => {
+    if (user && userProfile) {
+      setName(userProfile.displayName || user.displayName || "");
+      setEmail(user.email || "");
+      setPhone(userProfile.phone || "");
+      setLocation(userProfile.location || "Mumbai");
+    }
+  }, [user, userProfile]);
   
   // Notification settings
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -51,12 +63,27 @@ const SettingsContent = () => {
     "Kolkata", "Pune", "Ahmedabad", "Jaipur", "Surat"
   ];
   
-  const handleProfileUpdate = (e: React.FormEvent) => {
+  const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Profile Updated",
-      description: "Your profile information has been saved.",
-    });
+    try {
+      if (userProfile) {
+        await updateUserProfile({
+          displayName: name,
+          phone: phone,
+          location: location,
+        });
+        toast({
+          title: "Profile Updated",
+          description: "Your profile information has been saved.",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update profile.",
+        variant: "destructive",
+      });
+    }
   };
   
   const handleSubscriptionChange = (plan: string) => {
@@ -67,14 +94,21 @@ const SettingsContent = () => {
     });
   };
   
-  const handleLogout = () => {
-    localStorage.removeItem("investify_auth");
-    localStorage.removeItem("investify_user_type");
-    navigate("/login");
-    toast({
-      title: "Logged Out",
-      description: "You have been successfully logged out.",
-    });
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/login");
+      toast({
+        title: "Logged Out",
+        description: "You have been successfully logged out.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Logout Failed",
+        description: error.message || "Failed to logout.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

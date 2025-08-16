@@ -4,39 +4,53 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { IndianRupee, MapPin, LogIn } from "lucide-react";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [userType, setUserType] = useState<"business" | "investor">("business");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { signIn, signInWithGoogle } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      
-      // Store auth information in localStorage
-      localStorage.setItem("investify_auth", "true");
-      localStorage.setItem("investify_user_type", userType);
+      await signIn(email, password);
       
       toast({
         title: "Login successful",
         description: "Welcome back to Investify!",
       });
       
-      // Navigate to the appropriate dashboard based on user type
-      navigate(userType === "business" ? "/business-dashboard" : "/investor-dashboard", { replace: true });
-    } catch (error) {
+      // Navigation will be handled by the auth state change in the parent component
+    } catch (error: any) {
       toast({
         title: "Login error",
-        description: "An error occurred during login. Please try again.",
+        description: error.message || "An error occurred during login. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    try {
+      await signInWithGoogle();
+      toast({
+        title: "Login successful",
+        description: "Welcome to Investify!",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Login error",
+        description: error.message || "An error occurred during Google sign-in.",
         variant: "destructive",
       });
     } finally {
@@ -98,41 +112,6 @@ const Login = () => {
               </div>
             </div>
 
-            <div>
-              <label htmlFor="userType" className="block text-sm font-medium text-gray-700">
-                Login as
-              </label>
-              <div className="mt-1">
-                <div className="flex space-x-4">
-                  <div className="flex items-center">
-                    <input
-                      id="business"
-                      name="userType"
-                      type="radio"
-                      checked={userType === "business"}
-                      onChange={() => setUserType("business")}
-                      className="h-4 w-4 text-investify-primary focus:ring-investify-primary border-gray-300"
-                    />
-                    <label htmlFor="business" className="ml-2 block text-sm text-gray-900">
-                      Business
-                    </label>
-                  </div>
-                  <div className="flex items-center">
-                    <input
-                      id="investor"
-                      name="userType"
-                      type="radio"
-                      checked={userType === "investor"}
-                      onChange={() => setUserType("investor")}
-                      className="h-4 w-4 text-investify-primary focus:ring-investify-primary border-gray-300"
-                    />
-                    <label htmlFor="investor" className="ml-2 block text-sm text-gray-900">
-                      Investor
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
 
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -177,7 +156,13 @@ const Login = () => {
             </div>
 
             <div className="mt-6">
-              <Button variant="outline" className="w-full" type="button">
+              <Button 
+                variant="outline" 
+                className="w-full" 
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={isLoading}
+              >
                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                   <path
                     d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"

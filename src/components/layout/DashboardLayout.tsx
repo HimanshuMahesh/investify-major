@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { 
   LayoutDashboard,
@@ -46,6 +47,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const { logout } = useAuth();
 
   // Toggle sidebar collapse state
   const toggleSidebar = () => {
@@ -58,11 +60,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   };
 
   // Handle logout confirmation
-  const handleLogoutConfirm = () => {
-    localStorage.removeItem("investify_auth");
-    localStorage.removeItem("investify_user_type");
-    navigate("/login", { replace: true });
-    setShowLogoutDialog(false);
+  const handleLogoutConfirm = async () => {
+    try {
+      await logout();
+      navigate("/login", { replace: true });
+      setShowLogoutDialog(false);
+    } catch (error) {
+      console.error("Logout failed:", error);
+      setShowLogoutDialog(false);
+    }
   };
 
   return (

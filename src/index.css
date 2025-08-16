@@ -1,6 +1,7 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -86,23 +87,6 @@
   }
 }
 
-@font-face {
-  font-family: 'Garrett';
-  src: url('/fonts/Garrett-Semibold.woff2') format('woff2'),
-       url('/fonts/Garrett-Semibold.woff') format('woff');
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Garrett';
-  src: url('/fonts/Garrett-Bold.woff2') format('woff2'),
-       url('/fonts/Garrett-Bold.woff') format('woff');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
 
 @layer components {
   .container-custom {
@@ -137,7 +121,7 @@
   }
 
   .font-garrett {
-    font-family: 'Garrett', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-weight: 700;
   }
 

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -68,6 +69,7 @@ const Signup = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const { signUp } = useAuth();
 
   // Business form
   const businessForm = useForm<z.infer<typeof businessFormSchema>>({
@@ -93,16 +95,11 @@ const Signup = () => {
   });
 
   // Business form submission
-  function onBusinessSubmit(values: z.infer<typeof businessFormSchema>) {
+  async function onBusinessSubmit(values: z.infer<typeof businessFormSchema>) {
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Business signup values:", values);
-      
-      // Store auth state in localStorage
-      localStorage.setItem("investify_auth", "true");
-      localStorage.setItem("investify_user_type", "business");
+    try {
+      await signUp(values.email, values.password, "business");
       
       // Show success toast
       toast({
@@ -110,24 +107,24 @@ const Signup = () => {
         description: "Your business account has been created successfully.",
       });
       
+      // Navigation will be handled by auth state change
+    } catch (error: any) {
+      toast({
+        title: "Sign up failed",
+        description: error.message || "An error occurred during account creation.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-      
-      // Redirect to onboarding page
-      navigate("/onboarding");
-    }, 1500);
+    }
   }
 
   // Investor form submission
-  function onInvestorSubmit(values: z.infer<typeof investorFormSchema>) {
+  async function onInvestorSubmit(values: z.infer<typeof investorFormSchema>) {
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Investor signup values:", values);
-      
-      // Store auth state in localStorage
-      localStorage.setItem("investify_auth", "true");
-      localStorage.setItem("investify_user_type", "investor");
+    try {
+      await signUp(values.email, values.password, "investor");
       
       // Show success toast
       toast({
@@ -135,11 +132,16 @@ const Signup = () => {
         description: "Your investor account has been created successfully.",
       });
       
+      // Navigation will be handled by auth state change
+    } catch (error: any) {
+      toast({
+        title: "Sign up failed",
+        description: error.message || "An error occurred during account creation.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-      
-      // Redirect to onboarding page
-      navigate("/onboarding");
-    }, 1500);
+    }
   }
 
   return (

@@ -70,7 +70,7 @@ export default {
 			},
 			fontFamily: {
 				sans: ['Manrope', 'sans-serif'],
-				garrett: ['Garrett', 'sans-serif'],
+				garrett: ['Inter', 'sans-serif'],
 				outfit: ['Outfit', 'sans-serif'],
 			},
 			keyframes: {

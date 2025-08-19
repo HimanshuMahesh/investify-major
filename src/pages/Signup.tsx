@@ -1,38 +1,37 @@
 
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import SignupComponent from "@/components/auth/Signup";
 
 const Signup = () => {
   const navigate = useNavigate();
+  const { user, userProfile, loading } = useAuth();
   
-  // Listen for auth changes after signup
+  // Check if user is already authenticated
   useEffect(() => {
-    const checkAuth = () => {
-      const isLoggedIn = localStorage.getItem("investify_auth") === "true";
-      if (isLoggedIn) {
-        navigate("/onboarding");
+    if (!loading && user) {
+      if (userProfile) {
+        if (!userProfile.isOnboardingCompleted) {
+          // Redirect to onboarding if not completed
+          navigate("/onboarding", { replace: true });
+        } else {
+          // Redirect to the appropriate dashboard
+          navigate(
+            userProfile.userType === "investor" ? "/investor-dashboard" : "/business-dashboard",
+            { replace: true }
+          );
+        }
       }
-    };
-    
-    // Initial check
-    checkAuth();
-    
-    // Listen for storage changes
-    window.addEventListener("storage", checkAuth);
-    
-    // Also attach a mutation observer to detect DOM changes that might indicate successful signup
-    const observer = new MutationObserver(() => {
-      setTimeout(checkAuth, 500); // Small delay to ensure localStorage is updated
-    });
-    
-    observer.observe(document.body, { childList: true, subtree: true });
-    
-    return () => {
-      window.removeEventListener("storage", checkAuth);
-      observer.disconnect();
-    };
-  }, [navigate]);
+      // If user exists but no userProfile, let the component handle user type selection
+    }
+  }, [user, userProfile, loading, navigate]);
+
+  if (loading) {
+    return <div className="flex h-screen w-full items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-investify-primary"></div>
+    </div>;
+  }
   
   return <SignupComponent />;
 };

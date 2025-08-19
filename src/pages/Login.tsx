@@ -10,17 +10,20 @@ const Login = () => {
   
   // Check if user is already authenticated
   useEffect(() => {
-    if (!loading && user && userProfile) {
-      if (!userProfile.isOnboardingCompleted) {
-        // Redirect to onboarding if not completed
-        navigate("/onboarding", { replace: true });
-      } else {
-        // Redirect to the appropriate dashboard
-        navigate(
-          userProfile.userType === "investor" ? "/investor-dashboard" : "/business-dashboard",
-          { replace: true }
-        );
+    if (!loading && user) {
+      if (userProfile) {
+        if (!userProfile.isOnboardingCompleted) {
+          // Redirect to onboarding if not completed
+          navigate("/onboarding", { replace: true });
+        } else {
+          // Redirect to the appropriate dashboard
+          navigate(
+            userProfile.userType === "investor" ? "/investor-dashboard" : "/business-dashboard",
+            { replace: true }
+          );
+        }
       }
+      // If user exists but no userProfile, let the component handle user type selection
     }
   }, [user, userProfile, loading, navigate]);
 

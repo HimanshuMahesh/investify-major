@@ -1,19 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -22,92 +10,30 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
-
-const businessFormSchema = z.object({
-  companyName: z.string().min(2, {
-    message: "Company name must be at least 2 characters.",
-  }),
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  password: z.string().min(8, {
-    message: "Password must be at least 8 characters.",
-  }),
-  industry: z.string({
-    required_error: "Please select an industry.",
-  }),
-});
-
-const investorFormSchema = z.object({
-  firstName: z.string().min(2, {
-    message: "First name must be at least 2 characters.",
-  }),
-  lastName: z.string().min(2, {
-    message: "Last name must be at least 2 characters.",
-  }),
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  password: z.string().min(8, {
-    message: "Password must be at least 8 characters.",
-  }),
-  investorType: z.string({
-    required_error: "Please select an investor type.",
-  }),
-});
+import UserTypeSelection from "./UserTypeSelection";
 
 const Signup = () => {
   const { toast } = useToast();
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const { signUp } = useAuth();
+  const [showUserTypeSelection, setShowUserTypeSelection] = useState(false);
+  const { signInWithGoogle, user, userProfile, loading } = useAuth();
 
-  // Business form
-  const businessForm = useForm<z.infer<typeof businessFormSchema>>({
-    resolver: zodResolver(businessFormSchema),
-    defaultValues: {
-      companyName: "",
-      email: "",
-      password: "",
-      industry: "",
-    },
-  });
-
-  // Investor form
-  const investorForm = useForm<z.infer<typeof investorFormSchema>>({
-    resolver: zodResolver(investorFormSchema),
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      password: "",
-      investorType: "",
-    },
-  });
-
-  // Business form submission
-  async function onBusinessSubmit(values: z.infer<typeof businessFormSchema>) {
+  const handleGoogleSignUp = async () => {
     setIsLoading(true);
-    
     try {
-      await signUp(values.email, values.password, "business");
+      const result = await signInWithGoogle();
       
-      // Show success toast
-      toast({
-        title: "Account created!",
-        description: "Your business account has been created successfully.",
-      });
-      
-      // Navigation will be handled by auth state change
+      if (result.isNewUser) {
+        // Show user type selection for new users
+        setShowUserTypeSelection(true);
+      } else {
+        // Existing user - show message
+        toast({
+          title: "Welcome back!",
+          description: "You already have an account with us.",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Sign up failed",
@@ -117,215 +43,48 @@ const Signup = () => {
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
-  // Investor form submission
-  async function onInvestorSubmit(values: z.infer<typeof investorFormSchema>) {
-    setIsLoading(true);
-    
-    try {
-      await signUp(values.email, values.password, "investor");
-      
-      // Show success toast
-      toast({
-        title: "Account created!",
-        description: "Your investor account has been created successfully.",
-      });
-      
-      // Navigation will be handled by auth state change
-    } catch (error: any) {
-      toast({
-        title: "Sign up failed",
-        description: error.message || "An error occurred during account creation.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  // Show user type selection if it's a new user or if user exists without profile
+  if (showUserTypeSelection || (!loading && user && !userProfile)) {
+    return <UserTypeSelection />;
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
+          <Link to="/" className="flex justify-center mb-4">
+            <span className="text-2xl font-bold text-investify-primary">Investify</span>
+          </Link>
           <CardTitle className="text-2xl font-bold text-center">
             Create an account
           </CardTitle>
           <CardDescription className="text-center">
-            Choose your account type to get started
+            Connect with Google to get started
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="business" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="business">Business</TabsTrigger>
-              <TabsTrigger value="investor">Investor</TabsTrigger>
-            </TabsList>
+          <div className="space-y-6">
+            <Button 
+              className="w-full flex items-center justify-center gap-3 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50" 
+              type="button"
+              onClick={handleGoogleSignUp}
+              disabled={isLoading}
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path
+                  d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"
+                  fill="currentColor"
+                />
+              </svg>
+              {isLoading ? "Creating account..." : "Continue with Google"}
+            </Button>
             
-            {/* Business Signup Form */}
-            <TabsContent value="business">
-              <Form {...businessForm}>
-                <form onSubmit={businessForm.handleSubmit(onBusinessSubmit)} className="space-y-4">
-                  <FormField
-                    control={businessForm.control}
-                    name="companyName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Company Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Acme Inc." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={businessForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input placeholder="contact@company.com" type="email" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={businessForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input placeholder="••••••••" type="password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={businessForm.control}
-                    name="industry"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Industry</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select your industry" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="tech">Technology</SelectItem>
-                            <SelectItem value="finance">Finance</SelectItem>
-                            <SelectItem value="healthcare">Healthcare</SelectItem>
-                            <SelectItem value="retail">Retail</SelectItem>
-                            <SelectItem value="manufacturing">Manufacturing</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Creating account..." : "Create Business Account"}
-                  </Button>
-                </form>
-              </Form>
-            </TabsContent>
-            
-            {/* Investor Signup Form */}
-            <TabsContent value="investor">
-              <Form {...investorForm}>
-                <form onSubmit={investorForm.handleSubmit(onInvestorSubmit)} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={investorForm.control}
-                      name="firstName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>First Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="John" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={investorForm.control}
-                      name="lastName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Last Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Doe" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <FormField
-                    control={investorForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input placeholder="john.doe@example.com" type="email" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={investorForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input placeholder="••••••••" type="password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={investorForm.control}
-                    name="investorType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Investor Type</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select investor type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="angel">Angel Investor</SelectItem>
-                            <SelectItem value="vc">Venture Capitalist</SelectItem>
-                            <SelectItem value="pe">Private Equity</SelectItem>
-                            <SelectItem value="individual">Individual Investor</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Creating account..." : "Create Investor Account"}
-                  </Button>
-                </form>
-              </Form>
-            </TabsContent>
-          </Tabs>
+            <div className="text-center text-sm text-gray-500">
+              Secure authentication with your Google account
+            </div>
+          </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <div className="text-center text-sm text-gray-500">
@@ -341,12 +100,12 @@ const Signup = () => {
           </div>
           <div className="text-center text-sm">
             Already have an account?{" "}
-            <a
-              onClick={() => navigate("/login")}
-              className="text-blue-600 hover:underline cursor-pointer"
+            <Link
+              to="/login"
+              className="text-blue-600 hover:underline"
             >
               Sign in
-            </a>
+            </Link>
           </div>
         </CardFooter>
       </Card>

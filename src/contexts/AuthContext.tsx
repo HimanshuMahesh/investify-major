@@ -44,9 +44,10 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, userType: 'business' | 'investor') => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<{ isNewUser: boolean }>;
   logout: () => Promise<void>;
   updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  setUserType: (userType: 'business' | 'investor') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -180,23 +181,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (): Promise<{ isNewUser: boolean }> => {
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       console.log('Google sign-in successful:', result.user.email);
       
-      // Check if user profile exists, if not create with default userType
+      // Check if user profile exists
       const userRef = doc(db, 'users', result.user.uid);
       const userSnap = await getDoc(userRef);
       
       if (!userSnap.exists()) {
-        console.log('Creating new user profile for Google user');
-        // For Google sign-in, default to business type (can be changed later)
-        await createUserProfile(result.user, 'business');
+        console.log('New Google user detected - user needs to select type');
+        // Don't create profile yet - let user choose type first
+        return { isNewUser: true };
       } else {
-        console.log('User profile exists, fetching...');
+        console.log('Existing user profile found, fetching...');
         await fetchUserProfile(result.user.uid);
+        return { isNewUser: false };
       }
     } catch (error: any) {
       console.error('Google sign-in error:', error);
@@ -229,6 +231,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const setUserType = async (userType: 'business' | 'investor') => {
+    if (!user) {
+      throw new Error('No authenticated user found');
+    }
+
+    try {
+      // Create the user profile with the selected type
+      await createUserProfile(user, userType);
+    } catch (error: any) {
+      console.error('Error setting user type:', error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('Auth state changed:', user ? 'User logged in' : 'User logged out');
@@ -255,6 +271,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signInWithGoogle,
     logout,
     updateUserProfile,
+    setUserType,
   };
 
   return (

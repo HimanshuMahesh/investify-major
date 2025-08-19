@@ -1,1019 +1,451 @@
-
-import { useState } from "react";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+// src/pages/FindMatchesScreen.tsx
+import React, { useEffect, useState } from "react";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { db } from "../../lib/firebase";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Slider } from "@/components/ui/slider";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
-  ArrowRight, 
-  Search, 
-  Filter, 
-  ChevronDown, 
-  ArrowDownUp, 
-  Grid2X2, 
-  List,
-  Heart,
-  MessageSquare,
-  X,
-  Loader2
-} from "lucide-react";
-import { mockBusinesses, mockInvestors, Business, Investor } from "@/data/mockData";
-import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import {
+  Search,
+  TrendingUp,
+  Users,
+  MapPin,
+  DollarSign,
+  Building2,
+  Loader2,
+  AlertCircle,
+  Star,
+  Target,
+  Briefcase,
+  PiggyBank
+} from "lucide-react";
 
-// Add this function after the imports and before the MatchesContent component
-const renderApiResponseCards = (apiResponse: any) => {
-  if (!apiResponse) return null;
-
-  // If it's an error response
-  if (apiResponse.error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <h3 className="text-red-800 font-medium mb-2">Error:</h3>
-        <p className="text-red-700">{apiResponse.error}</p>
-        {apiResponse.details && (
-          <p className="text-red-700 mt-1">Details: {apiResponse.details}</p>
-        )}
-        {apiResponse.raw && (
-          <details className="mt-3">
-            <summary className="text-red-600 cursor-pointer">Show raw response</summary>
-            <pre className="mt-2 text-xs text-red-600 bg-red-100 p-2 rounded overflow-auto max-h-40">
-              {apiResponse.raw}
-            </pre>
-          </details>
-        )}
-      </div>
-    );
-  }
-
-  // If it's a raw text response
-  if (apiResponse.raw) {
-    return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <h3 className="text-yellow-800 font-medium mb-2">Raw Response (Not JSON):</h3>
-        <pre className="text-sm text-yellow-700 bg-yellow-100 p-3 rounded overflow-auto max-h-60">
-          {apiResponse.raw}
-        </pre>
-      </div>
-    );
-  }
-
-  // If it's a successful JSON response, render as cards
-  const renderMatchCard = (match: any, index: number) => {
-    // Handle different response structures
-    const matchData = match.match || match.investor || match.startup || match;
-    const score = match.score || match.compatibility_score || match.match_score || 'N/A';
-    const name = matchData?.displayName || matchData?.name || 'Unknown';
-    const industry = matchData?.industry || 'Not specified';
-    const description = matchData?.description || matchData?.startupBrief || 'No description available';
-    const location = matchData?.location || 'Not specified';
-    const funding = matchData?.funding_needed || matchData?.fundingAmount || matchData?.investmentRange || 'Not specified';
-    const stage = matchData?.stage || 'Not specified';
-    const email = matchData?.email || 'Not available';
-
-    return (
-      <Card key={index} className="overflow-hidden hover:shadow-lg transition-shadow">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-full bg-investify-navy text-white flex items-center justify-center text-lg font-bold">
-                {name.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <CardTitle className="text-lg">{name}</CardTitle>
-                <CardDescription className="text-sm">{email}</CardDescription>
-              </div>
-            </div>
-            <Badge variant="secondary" className="bg-green-100 text-green-800">
-              {typeof score === 'number' ? `${score}%` : score} Match
-            </Badge>
-          </div>
-        </CardHeader>
-        
-        <CardContent className="pt-0">
-          <div className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="text-xs">{industry}</Badge>
-              {stage && <Badge variant="outline" className="text-xs">{stage}</Badge>}
-              {location && <Badge variant="outline" className="text-xs">{location}</Badge>}
-            </div>
-            
-            <p className="text-sm text-gray-600 line-clamp-2">{description}</p>
-            
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">
-                {matchData?.userType === 'investor' ? 'Investment Range:' : 'Funding Needed:'}
-              </span>
-              <span className="text-gray-600">{funding}</span>
-            </div>
-            
-            <div className="flex gap-2 pt-2">
-              <Button size="sm" className="flex-1">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Contact
-              </Button>
-              <Button size="sm" variant="outline" className="flex-1">
-                <Heart className="h-4 w-4 mr-2" />
-                Save
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
-  // Handle different response structures
-  let matches = [];
-  if (Array.isArray(apiResponse)) {
-    matches = apiResponse;
-  } else if (apiResponse.matches && Array.isArray(apiResponse.matches)) {
-    matches = apiResponse.matches;
-  } else if (apiResponse.top_matches && Array.isArray(apiResponse.top_matches)) {
-    matches = apiResponse.top_matches;
-  } else if (apiResponse.recommendations && Array.isArray(apiResponse.recommendations)) {
-    matches = apiResponse.recommendations;
-  } else {
-    // If it's a single object, wrap it in an array
-    matches = [apiResponse];
-  }
-
-  if (matches.length === 0) {
-    return (
-      <div className="text-center py-12 text-gray-500">
-        <p>No matches found in the response.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {matches.map((match, index) => renderMatchCard(match, index))}
-    </div>
-  );
+type Startup = {
+  uid: string;
+  displayName: string;
+  email: string;
+  phone?: string;
+  location?: string;
+  industry?: string;
+  stage?: string;
+  teamSize?: string;
+  techStack?: string;
+  businessModel?: string;
+  fundingAmount?: string;
+  investmentType?: string;
+  revenueRange?: string;
+  startupBrief?: string;
+  targetMarket?: string;
+  aiConfidence?: number;
+  isOnboardingCompleted?: boolean;
+  createdAt?: any;
+  updatedAt?: any;
+  userType?: string;
 };
 
-// Adjust the component based on user type
-const MatchesContent = () => {
-  const { userProfile } = useAuth();
-  
-  console.log('Current user profile:', userProfile);
-  console.log('Current user type:', userProfile?.userType);
-  
-  // Temporary debug section for testing
-  const [debugUserType, setDebugUserType] = useState<'business' | 'investor' | null>(null);
-  
-  // Use debug user type if set, otherwise use the actual user profile
-  const currentUserType = debugUserType || userProfile?.userType;
-  
-  return (
-    <div>
-      {/* Temporary debug controls - remove this in production */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
-          <p className="font-bold">Debug Mode:</p>
-          <p>Current user type: {currentUserType}</p>
-          <div className="flex gap-2 mt-2">
-            <Button 
-              size="sm" 
-              onClick={() => setDebugUserType('business')}
-              variant={currentUserType === 'business' ? 'default' : 'outline'}
-            >
-              Set as Business
-            </Button>
-            <Button 
-              size="sm" 
-              onClick={() => setDebugUserType('investor')}
-              variant={currentUserType === 'investor' ? 'default' : 'outline'}
-            >
-              Set as Investor
-            </Button>
-            <Button 
-              size="sm" 
-              onClick={() => setDebugUserType(null)}
-              variant="outline"
-            >
-              Use Real Profile
-            </Button>
-          </div>
-        </div>
-      )}
-      
-      {/* Main content */}
-      {currentUserType === "business" ? <BusinessMatchesView /> : <InvestorMatchesView />}
-    </div>
-  );
+type Investor = {
+  uid: string;
+  displayName: string;
+  email: string;
+  location?: string;
+  investorBrief?: string;
+  investmentAmountRange?: string;
+  preferredIndustries?: string[];
+  preferredInvestmentTypes?: string[];
+  preferredTeamSizes?: string[];
+  preferredRevenueRanges?: string[];
+  userType?: string;
+  isOnboardingCompleted?: boolean;
+  createdAt?: any;
+  updatedAt?: any;
 };
 
-const InvestorMatchesView = () => {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [filterValues, setFilterValues] = useState({
-    fundingRange: [0, 5000000],
-    industries: [] as string[],
-    stages: [] as string[],
-    locations: [] as string[],
-  });
-  const [searchTerm, setSearchTerm] = useState("");
-  const [apiResponse, setApiResponse] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
+type InvestorMatch = {
+  investor_id: string;
+  displayName: string;
+  match_score: number;
+  match_reason: string;
+  investment_fit?: string;
+  strategic_fit?: string;
+};
+
+type StartupMatch = {
+  startup_id: string;
+  displayName: string;
+  match_score: number;
+  match_reason: string;
+  investment_fit?: string;
+  industry_fit?: string;
+};
+
+type User = Startup | Investor;
+type Match = InvestorMatch | StartupMatch;
+
+// Helper: convert Firestore Timestamp to ISO string
+const toIsoString = (ts: any): string | undefined => {
+  if (!ts) return undefined;
+  if (typeof ts === "string") return ts;
+  if (ts.toDate) return ts.toDate().toISOString();
+  if (ts.seconds) return new Date(ts.seconds * 1000).toISOString();
+  return undefined;
+};
+
+// Helper: Get match score color
+const getMatchScoreColor = (score: number): string => {
+  if (score >= 90) return "bg-emerald-500";
+  if (score >= 80) return "bg-teal-500";
+  if (score >= 70) return "bg-cyan-500";
+  if (score >= 60) return "bg-orange-500";
+  return "bg-red-500";
+};
+
+// Helper: Get match score label
+const getMatchScoreLabel = (score: number): string => {
+  if (score >= 90) return "Excellent Match";
+  if (score >= 80) return "Great Match";
+  if (score >= 70) return "Good Match";
+  if (score >= 60) return "Fair Match";
+  return "Low Match";
+};
+
+// Helper: Check if user is startup
+const isStartup = (user: User): user is Startup => {
+  return user.userType === "startup" || user.userType === "business";
+};
+
+// Helper: Check if user is investor
+const isInvestor = (user: User): user is Investor => {
+  return user.userType === "investor";
+};
+
+// Helper: Check if match is startup match
+const isStartupMatch = (match: Match): match is StartupMatch => {
+  return 'startup_id' in match;
+};
+
+export default function FindMatchesScreen() {
+
+  const BASE_URL = 'http://localhost:8000/'; // Change this to your actual backend URL
+
   const { toast } = useToast();
-  const { userProfile } = useAuth();
-  
-  // All available filter options
-  const filterOptions = {
-    industries: ["AI & Machine Learning", "Healthcare", "FinTech", "CleanTech", "Supply Chain", "SaaS"],
-    stages: ["Pre-seed", "Seed", "Series A", "Series B", "Series C"],
-    locations: ["San Francisco, CA", "New York, NY", "Boston, MA", "Austin, TX", "Chicago, IL"],
-  };
-  
-  // Filter and sort businesses
-  const filteredBusinesses = mockBusinesses
-    .filter((business) => {
-      // Search term filter
-      if (searchTerm && !business.name.toLowerCase().includes(searchTerm.toLowerCase()) && 
-          !business.description.toLowerCase().includes(searchTerm.toLowerCase())) {
-        return false;
-      }
-      
-      // Industry filter
-      if (filterValues.industries.length > 0 && 
-          !filterValues.industries.includes(business.industry)) {
-        return false;
-      }
-      
-      // Stage filter
-      if (filterValues.stages.length > 0 && 
-          !filterValues.stages.includes(business.stage)) {
-        return false;
-      }
-      
-      // Location filter
-      if (filterValues.locations.length > 0 && 
-          !filterValues.locations.includes(business.location)) {
-        return false;
-      }
-      
-      // Funding range filter
-      const fundingNum = parseInt(business.fundingNeeded.replace(/[^0-9]/g, ""));
-      if (fundingNum < filterValues.fundingRange[0] || fundingNum > filterValues.fundingRange[1]) {
-        return false;
-      }
-      
-      return true;
-    });
+  const [userProfile, setUserProfile] = useState<User | null>(null);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [cachedMatches, setCachedMatches] = useState<Match[]>([]);
+  const [req, setReq] = useState<any>(null);
 
-  const toggleIndustryFilter = (industry: string) => {
-    setFilterValues(prev => {
-      if (prev.industries.includes(industry)) {
-        return {...prev, industries: prev.industries.filter(i => i !== industry)};
-      } else {
-        return {...prev, industries: [...prev.industries, industry]};
-      }
-    });
-  };
-  
-  const toggleStageFilter = (stage: string) => {
-    setFilterValues(prev => {
-      if (prev.stages.includes(stage)) {
-        return {...prev, stages: prev.stages.filter(s => s !== stage)};
-      } else {
-        return {...prev, stages: [...prev.stages, stage]};
-      }
-    });
-  };
-  
-  const toggleLocationFilter = (location: string) => {
-    setFilterValues(prev => {
-      if (prev.locations.includes(location)) {
-        return {...prev, locations: prev.locations.filter(l => l !== location)};
-      } else {
-        return {...prev, locations: [...prev.locations, location]};
-      }
-    });
-  };
-  
-  const handleSaveMatch = (business: Business) => {
-    toast({
-      title: "Business saved",
-      description: `You've saved ${business.name} to your matches.`,
-    });
-  };
-  
-  const handleContactBusiness = (business: Business) => {
-    toast({
-      title: "Message initiated",
-      description: `You can now message ${business.name}.`,
-    });
-  };
-  
-  const handleRejectMatch = (business: Business) => {
-    toast({
-      title: "Match rejected",
-      description: `You've removed ${business.name} from your matches.`,
-    });
-  };
-
-  const findStartups = async () => {
-    setLoading(true);
-    try {
-      console.log('Calling API endpoint with POST for startups...');
-      
-      // ✅ FETCH ACTUAL STARTUPS FROM FIREBASE
-      console.log('Fetching startups from Firebase...');
-      let startups: any[] = [];
-      
+  // Load user profile and cached matches
+  useEffect(() => {
+    const fetchProfile = async () => {
       try {
-        const startupsQuery = query(
-          collection(db, 'users'),
-          where('userType', '==', 'business')
-        );
-        
-        console.log('Firebase query created for startups:', startupsQuery);
-        const startupsSnapshot = await getDocs(startupsQuery);
-        console.log('Firebase snapshot received for startups, size:', startupsSnapshot.size);
-        
-        startupsSnapshot.forEach((doc) => {
-          const startupData = doc.data();
-          console.log('Processing startup doc:', doc.id, startupData);
-          startups.push({
-            uid: doc.id,
-            displayName: startupData.displayName || 'Unknown Startup',
-            email: startupData.email || '',
-            userType: startupData.userType || 'business',
-            industry: startupData.industry || 'General',
-            stage: startupData.stage || 'Not specified',
-            funding_needed: startupData.fundingAmount || 'Not specified',
-            description: startupData.startupBrief || 'Not specified'
-          });
-        });
-        
-        console.log('Fetched startups from Firebase:', startups);
-        console.log('Number of startups found:', startups.length);
-        
-        if (startups.length === 0) {
-          toast({
-            title: "No Startups Found",
-            description: "No startups are currently registered in Firebase. Please try again after startups sign up.",
-            variant: "destructive",
-          });
-          setLoading(false);
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (!user) {
+          setError("No user signed in.");
+          setProfileLoading(false);
           return;
         }
-      } catch (firebaseError) {
-        console.error('Error fetching startups from Firebase:', firebaseError);
-        toast({
-          title: "Firebase Error",
-          description: "Failed to fetch startups from database. Please try again.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-      
-             // Use the actual investor data from user profile - NO DUMMY DATA
-       const requestData = {
-         investor: {
-           uid: userProfile?.uid || "investor_" + Date.now(),
-           displayName: userProfile?.displayName || "My Investment Fund",
-           email: userProfile?.email || "investor@example.com",
-           name: userProfile?.displayName || "My Investment Fund",
-           industry: userProfile?.industry || "Technology",
-           investmentRange: "500k-2M", // Default investment range for investors
-           description: userProfile?.startupBrief || "An investor seeking opportunities"
-         },
-         startups: startups // Array of all startups from Firebase
-       };
-       
-       console.log('Request data for startups:', requestData);
-       console.log('Investor data:', requestData.investor);
-       console.log('Startups array length:', requestData.startups.length);
-       console.log('Startups array:', requestData.startups);
-       
-       // Simple POST request to your API endpoint for finding startups
-       const response = await fetch('https://70c23b88793c.ngrok-free.app/api/matchmaking/find-startup-matches/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/plain, */*',
-        },
-        body: JSON.stringify(requestData),
-      });
-      
-      console.log('Response status:', response.status);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log('Error response body:', errorText);
-        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-      }
+        const docRef = doc(db, "users", user.uid);
+        const snap = await getDoc(docRef);
 
-      const responseText = await response.text();
-      console.log('Raw API Response:', responseText);
-      
-      // Check if response is HTML (error page)
-      if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
-        console.log('Received HTML response, likely an error page');
-        setApiResponse({ error: 'HTML response received', raw: responseText });
-        setHasSearched(true);
-        toast({
-          title: "API Error",
-          description: "The API returned an HTML page instead of data.",
-          variant: "destructive",
-        });
-        return;
-      }
+        if (snap.exists()) {
+          const profile = { uid: user.uid, ...snap.data() } as User;
+          setUserProfile(profile);
 
-      // Try to parse as JSON first
-      let data;
-      try {
-        data = JSON.parse(responseText);
-        console.log('Parsed JSON data:', data);
-        
-        // Display EXACT API response - no processing, no dummy data
-        setApiResponse(data);
-      } catch (parseError) {
-        console.log('Failed to parse as JSON, treating as text');
-        
-        // If it's not JSON, display the raw text response
-        setApiResponse({ raw: responseText });
+          // Load cached matches for this user
+          const matchType = isStartup(profile) ? "investor" : "startup";
+          const cacheKey = `${matchType}_matches_${user.uid}`;
+          const cachedData = localStorage.getItem(cacheKey);
+          if (cachedData) {
+            try {
+              const parsed = JSON.parse(cachedData);
+              if (Array.isArray(parsed.matches) && parsed.timestamp) {
+                // Check if cache is less than 24 hours old
+                const cacheAge = Date.now() - parsed.timestamp;
+                if (cacheAge < 24 * 60 * 60 * 1000) { // 24 hours
+                  setMatches(parsed.matches);
+                  setCachedMatches(parsed.matches);
+                  toast({
+                    title: "Cached Matches Loaded",
+                    description: `Loaded ${parsed.matches.length} previously found matches.`,
+                  });
+                }
+              }
+            } catch (err) {
+              console.error("Error parsing cached matches:", err);
+              localStorage.removeItem(cacheKey);
+            }
+          }
+        } else {
+          setError("User profile not found in database.");
+        }
+      } catch (err) {
+        console.error(err);
+        setError("Error fetching user profile.");
+      } finally {
+        setProfileLoading(false);
       }
-      
-      setHasSearched(true);
+    };
+
+    fetchProfile();
+  }, []);
+
+  // Build request payload for startup finding investors
+  const buildStartupRequestPayload = (startup: Startup, investors: Investor[]) => ({
+    startup: {
+      uid: startup.uid,
+      displayName: startup.displayName,
+      email: startup.email,
+      phone: startup.phone || "",
+      location: startup.location || "",
+      industry: startup.industry || "",
+      stage: startup.stage || "",
+      teamSize: startup.teamSize || "",
+      techStack: startup.techStack || "",
+      businessModel: startup.businessModel || "",
+      fundingAmount: startup.fundingAmount || "",
+      investmentType: startup.investmentType || "",
+      revenueRange: startup.revenueRange || "",
+      startupBrief: startup.startupBrief || "",
+      targetMarket: startup.targetMarket || "",
+      aiConfidence: startup.aiConfidence ?? 0,
+      isOnboardingCompleted: Boolean(startup.isOnboardingCompleted),
+      createdAt: toIsoString(startup.createdAt) || new Date().toISOString(),
+      updatedAt: toIsoString(startup.updatedAt) || new Date().toISOString(),
+      userType: startup.userType || "startup",
+    },
+    investors: investors.map((inv) => ({
+      ...inv,
+      preferredIndustries: inv.preferredIndustries || [],
+      preferredInvestmentTypes: inv.preferredInvestmentTypes || [],
+      preferredTeamSizes: inv.preferredTeamSizes || [],
+      preferredRevenueRanges: inv.preferredRevenueRanges || [],
+      createdAt: toIsoString(startup.createdAt) || new Date().toISOString(),
+      updatedAt: toIsoString(startup.updatedAt) || new Date().toISOString(),
+    })),
+  });
+
+  // Build request payload for investor finding startups
+  const buildInvestorRequestPayload = (investor: Investor, startups: Startup[]) => ({
+    investor: {
+      uid: investor.uid,
+      displayName: investor.displayName,
+      email: investor.email,
+      location: investor.location || "",
+      investorBrief: investor.investorBrief || "",
+      investmentAmountRange: investor.investmentAmountRange || "",
+      preferredIndustries: investor.preferredIndustries || [],
+      preferredInvestmentTypes: investor.preferredInvestmentTypes || [],
+      preferredTeamSizes: investor.preferredTeamSizes || [],
+      preferredRevenueRanges: investor.preferredRevenueRanges || [],
+    },
+    startups: startups.map((startup) => ({
+      uid: startup.uid,
+      displayName: startup.displayName,
+      email: startup.email,
+      phone: startup.phone || "",
+      location: startup.location || "",
+      industry: startup.industry || "",
+      stage: startup.stage || "",
+      teamSize: startup.teamSize || "",
+      techStack: startup.techStack || "",
+      businessModel: startup.businessModel || "",
+      fundingAmount: startup.fundingAmount || "",
+      investmentType: startup.investmentType || "",
+      revenueRange: startup.revenueRange || "",
+      startupBrief: startup.startupBrief || "",
+      targetMarket: startup.targetMarket || "",
+      aiConfidence: startup.aiConfidence ?? 0,
+      isOnboardingCompleted: Boolean(startup.isOnboardingCompleted),
+      createdAt: toIsoString(startup.createdAt) || new Date().toISOString(),
+      updatedAt: toIsoString(startup.updatedAt) || new Date().toISOString(),
+      userType: startup.userType || "startup",
+    })),
+  });
+
+  // Clear cached matches
+  const clearCache = () => {
+    const auth = getAuth();
+    if (auth.currentUser && userProfile) {
+      const matchType = isStartup(userProfile) ? "investor" : "startup";
+      const cacheKey = `${matchType}_matches_${auth.currentUser.uid}`;
+      localStorage.removeItem(cacheKey);
+      setMatches([]);
+      setCachedMatches([]);
+      const entityType = isStartup(userProfile) ? "investor" : "startup";
       toast({
-        title: "API Response Received",
-        description: "Successfully fetched data from the API.",
+        title: "Cache Cleared",
+        description: `Cached ${entityType} matches have been cleared.`,
       });
-      
-    } catch (error) {
-      console.error('Error fetching startups:', error);
-      
-      setApiResponse({
-        error: 'Failed to fetch from API',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        raw: 'No response received'
-      });
-      setHasSearched(true);
-      toast({
-        title: "API Error",
-        description: `Failed to fetch from API: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
     }
   };
 
-  return (
-    <div className="container-custom py-8">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Investment Opportunities</h1>
-          <p className="text-gray-600">Find and connect with promising businesses</p>
-        </div>
-        
-        <div className="mt-4 lg:mt-0 flex items-center space-x-2">
-          <Button
-            variant={viewMode === "grid" ? "default" : "outline"}
-            size="icon"
-            onClick={() => setViewMode("grid")}
-          >
-            <Grid2X2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={viewMode === "list" ? "default" : "outline"}
-            size="icon"
-            onClick={() => setViewMode("list")}
-          >
-            <List className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="outline"
-            className="ml-2"
-            onClick={() => setFiltersOpen(!filtersOpen)}
-          >
-            <Filter className="h-4 w-4 mr-2" />
-            Filters {filterValues.industries.length || filterValues.stages.length || filterValues.locations.length ? 
-                      `(${filterValues.industries.length + filterValues.stages.length + filterValues.locations.length})` : 
-                      ''}
-          </Button>
-        </div>
-      </div>
-      
-      <div className="space-y-6">
-        {/* Find Startups Section */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex-1">
-                <p className="text-sm text-gray-600">Click the button to find startups using your investor profile</p>
-              </div>
-              <Button 
-                onClick={findStartups}
-                disabled={loading}
-                className="w-full sm:w-auto"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Finding Startups...
-                  </>
-                ) : (
-                  <>
-                    <Search className="h-4 w-4 mr-2" />
-                    Find Startups
-                  </>
-                )}
-              </Button>
-            </div>
-          </CardHeader>
-        </Card>
-
-        {/* API Response Display */}
-        {hasSearched && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold">API Response</h2>
-                  <p className="text-sm text-gray-600">
-                    Response from the API endpoint
-                  </p>
-                </div>
-              </div>
-            </CardHeader>
-            
-            <CardContent>
-              {renderApiResponseCards(apiResponse)}
-            </CardContent>
-          </Card>
-        )}
-      
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Filters panel */}
-          {filtersOpen && (
-            <div className="lg:col-span-1">
-              <Card className="sticky top-20">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Filters</CardTitle>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => setFilterValues({
-                        fundingRange: [0, 5000000],
-                        industries: [],
-                        stages: [],
-                        locations: [],
-                      })}
-                    >
-                      Reset
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-5 pt-0">
-                  <div>
-                    <h3 className="font-medium text-sm mb-2">Funding Amount</h3>
-                    <div className="pl-2 pr-2">
-                      <Slider
-                        defaultValue={[0, 5000000]}
-                        max={5000000}
-                        step={100000}
-                        value={filterValues.fundingRange}
-                        onValueChange={(value) => setFilterValues({ ...filterValues, fundingRange: value })}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between mt-2 text-sm text-gray-600">
-                      <span>${(filterValues.fundingRange[0]/1000000).toFixed(1)}M</span>
-                      <span>${(filterValues.fundingRange[1]/1000000).toFixed(1)}M</span>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="font-medium text-sm mb-2">Industries</h3>
-                    <div className="space-y-2">
-                      {filterOptions.industries.map((industry) => (
-                        <div key={industry} className="flex items-center space-x-2">
-                          <Checkbox 
-                            id={`industry-${industry}`} 
-                            checked={filterValues.industries.includes(industry)}
-                            onCheckedChange={() => toggleIndustryFilter(industry)}
-                          />
-                          <label 
-                            htmlFor={`industry-${industry}`}
-                            className="text-sm cursor-pointer"
-                          >
-                            {industry}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="font-medium text-sm mb-2">Stage</h3>
-                    <div className="space-y-2">
-                      {filterOptions.stages.map((stage) => (
-                        <div key={stage} className="flex items-center space-x-2">
-                          <Checkbox 
-                            id={`stage-${stage}`}
-                            checked={filterValues.stages.includes(stage)}
-                            onCheckedChange={() => toggleStageFilter(stage)}
-                          />
-                          <label 
-                            htmlFor={`stage-${stage}`}
-                            className="text-sm cursor-pointer"
-                          >
-                            {stage}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="font-medium text-sm mb-2">Location</h3>
-                    <div className="space-y-2">
-                      {filterOptions.locations.map((location) => (
-                        <div key={location} className="flex items-center space-x-2">
-                          <Checkbox 
-                            id={`location-${location}`}
-                            checked={filterValues.locations.includes(location)}
-                            onCheckedChange={() => toggleLocationFilter(location)}
-                          />
-                          <label 
-                            htmlFor={`location-${location}`}
-                            className="text-sm cursor-pointer"
-                          >
-                            {location}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-          
-          {/* Main content */}
-          <div className={`${filtersOpen ? 'lg:col-span-3' : 'lg:col-span-4'}`}>
-            <Card>
-              <CardHeader className="pb-2">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Search businesses..." 
-                      className="pl-8"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Select defaultValue="recommended">
-                      <SelectTrigger className="w-[160px]">
-                        <SelectValue placeholder="Sort by" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="recommended">Recommended</SelectItem>
-                        <SelectItem value="match">Match Score</SelectItem>
-                        <SelectItem value="newest">Newest</SelectItem>
-                        <SelectItem value="funding-asc">Funding: Low to High</SelectItem>
-                        <SelectItem value="funding-desc">Funding: High to Low</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="pt-4">
-                <Tabs defaultValue="all">
-                  <TabsList className="mb-6">
-                    <TabsTrigger value="all">All Matches</TabsTrigger>
-                    <TabsTrigger value="saved">Saved</TabsTrigger>
-                    <TabsTrigger value="contacted">Contacted</TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="all">
-                    {filteredBusinesses.length === 0 ? (
-                      <div className="text-center py-12 text-gray-500">
-                        <p>No businesses match your current filters. Try adjusting your criteria.</p>
-                      </div>
-                    ) : viewMode === "grid" ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                        {filteredBusinesses.map((business) => (
-                          <Card key={business.id} className="overflow-hidden">
-                            <CardContent className="p-0">
-                              <div className="p-6">
-                                <div className="flex items-start gap-3">
-                                  <div className="h-12 w-12 rounded-full bg-investify-navy text-white flex items-center justify-center text-xl font-bold">
-                                    {business.logo}
-                                  </div>
-                                  <div className="flex-1">
-                                    <div className="flex items-start justify-between mb-1">
-                                      <h3 className="font-semibold">{business.name}</h3>
-                                      <div className="bg-green-50 text-green-700 font-medium rounded px-2 py-0.5 text-xs">
-                                        {business.compatibilityScore}% match
-                                      </div>
-                                    </div>
-                                    <div className="flex flex-wrap gap-1 mb-2">
-                                      <Badge variant="outline" className="text-xs">{business.industry}</Badge>
-                                      <Badge variant="outline" className="text-xs">{business.stage}</Badge>
-                                    </div>
-                                    <p className="text-sm text-gray-600 mb-2">{business.location}</p>
-                                    <p className="text-sm text-gray-600 mb-2 line-clamp-2">{business.description}</p>
-                                    <p className="text-sm font-medium">Seeking: {business.fundingNeeded}</p>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex divide-x border-t">
-                                <Button 
-                                  variant="ghost" 
-                                  className="flex-1 rounded-none h-12"
-                                  onClick={() => handleSaveMatch(business)}
-                                >
-                                  <Heart className="h-4 w-4 mr-2" />
-                                  Save
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  className="flex-1 rounded-none h-12"
-                                  onClick={() => handleContactBusiness(business)}
-                                >
-                                  <MessageSquare className="h-4 w-4 mr-2" />
-                                  Message
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  className="flex-1 rounded-none h-12 hover:bg-red-50 hover:text-red-500"
-                                  onClick={() => handleRejectMatch(business)}
-                                >
-                                  <X className="h-4 w-4 mr-2" />
-                                  Reject
-                                </Button>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {filteredBusinesses.map((business) => (
-                          <Card key={business.id}>
-                            <CardContent className="p-4">
-                              <div className="flex items-start">
-                                <div className="h-14 w-14 rounded-full bg-investify-navy text-white flex items-center justify-center text-xl font-bold mr-4">
-                                  {business.logo}
-                                </div>
-                                <div className="flex-1">
-                                  <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-2">
-                                    <div>
-                                      <h3 className="font-semibold text-lg">{business.name}</h3>
-                                      <div className="flex flex-wrap gap-2 mt-1">
-                                        <Badge variant="outline">{business.industry}</Badge>
-                                        <Badge variant="outline">{business.stage}</Badge>
-                                        <Badge variant="outline">{business.location}</Badge>
-                                      </div>
-                                    </div>
-                                    <div className="mt-2 sm:mt-0 sm:text-right">
-                                      <div className="bg-green-50 text-green-700 font-medium rounded px-2 py-1 text-sm inline-block">
-                                        {business.compatibilityScore}% match
-                                      </div>
-                                      <p className="mt-1 text-sm font-medium">
-                                        Seeking: {business.fundingNeeded}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <p className="text-sm text-gray-600 my-2">
-                                    {business.description}
-                                  </p>
-                                  <div className="flex flex-wrap gap-2 mt-4">
-                                    <Button size="sm" onClick={() => handleSaveMatch(business)}>
-                                      <Heart className="h-4 w-4 mr-2" />
-                                      Save
-                                    </Button>
-                                    <Button size="sm" variant="outline" onClick={() => handleContactBusiness(business)}>
-                                      <MessageSquare className="h-4 w-4 mr-2" />
-                                      Message
-                                    </Button>
-                                    <Button 
-                                      size="sm" 
-                                      variant="outline" 
-                                      className="text-red-500 hover:bg-red-50"
-                                      onClick={() => handleRejectMatch(business)}
-                                    >
-                                      <X className="h-4 w-4 mr-2" />
-                                      Reject
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
-                  </TabsContent>
-                  
-                  <TabsContent value="saved">
-                    <div className="text-center py-12 text-gray-500">
-                      <p>You haven't saved any businesses yet.</p>
-                      <Button variant="link">Browse matches to find businesses to save</Button>
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="contacted">
-                    <div className="text-center py-12 text-gray-500">
-                      <p>You haven't contacted any businesses yet.</p>
-                      <Button variant="link">Browse matches to find businesses to contact</Button>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const BusinessMatchesView = () => {
-  const [apiResponse, setApiResponse] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-  const { toast } = useToast();
-  const { userProfile } = useAuth();
-
-  const findInvestors = async () => {
+  const findMatches = async () => {
+    if (!userProfile) return;
     setLoading(true);
+    setError(null);
+
     try {
-      console.log('Calling API endpoint with POST...');
-      
-      // ✅ FETCH ACTUAL INVESTORS FROM FIREBASE - This is the correct implementation
-      console.log('Fetching investors from Firebase...');
-      let investors: any[] = [];
-      
-      try {
+      let requestData: any;
+      let endpoint: string;
+      let entityType: string;
+
+      if (isStartup(userProfile)) {
+        // Startup finding investors
+        const investors: Investor[] = [];
         const investorsQuery = query(
-          collection(db, 'users'),
-          where('userType', '==', 'investor')
+          collection(db, "users"),
+          where("userType", "==", "investor")
         );
-        
-        console.log('Firebase query created:', investorsQuery);
         const investorsSnapshot = await getDocs(investorsQuery);
-        console.log('Firebase snapshot received, size:', investorsSnapshot.size);
-        
-        investorsSnapshot.forEach((doc) => {
-          const investorData = doc.data();
-          console.log('Processing investor doc:', doc.id, investorData);
+
+        investorsSnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
           investors.push({
-            uid: doc.id,
-            displayName: investorData.displayName || 'Unknown Investor',
-            email: investorData.email || '',
-            userType: investorData.userType || 'investor',
-            industry: investorData.industry || 'General',
-            investmentRange: investorData.investmentRange || 'Not specified',
-            location: investorData.location || 'Not specified'
+            uid: docSnap.id,
+            displayName: data.displayName || "Unknown Investor",
+            email: data.email || "",
+            location: data.location,
+            investorBrief: data.investorBrief,
+            investmentAmountRange: data.investmentAmountRange,
+            preferredIndustries: data.preferredIndustries,
+            preferredInvestmentTypes: data.preferredInvestmentTypes,
+            preferredTeamSizes: data.preferredTeamSizes,
+            preferredRevenueRanges: data.preferredRevenueRanges,
+            userType: data.userType,
+            isOnboardingCompleted: data.isOnboardingCompleted,
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt,
           });
         });
-        
-        console.log('Fetched investors from Firebase:', investors);
-        console.log('Number of investors found:', investors.length);
-        
+
         if (investors.length === 0) {
           toast({
             title: "No Investors Found",
-            description: "No investors are currently registered in Firebase. Please try again after investors sign up.",
+            description: "No investors are currently registered in the platform.",
             variant: "destructive",
           });
           setLoading(false);
           return;
         }
-      } catch (firebaseError) {
-        console.error('Error fetching investors from Firebase:', firebaseError);
-        toast({
-          title: "Firebase Error",
-          description: "Failed to fetch investors from database. Please try again.",
-          variant: "destructive",
+
+        requestData = buildStartupRequestPayload(userProfile, investors);
+        endpoint = `${BASE_URL}api/matchmaking/find-investor-matches/`;
+        entityType = "investor";
+      } else if (isInvestor(userProfile)) {
+        // Investor finding startups
+        const startups: Startup[] = [];
+        const startupsQuery = query(
+          collection(db, "users"),
+          where("userType", "==", "business")
+        );
+        const startupsSnapshot = await getDocs(startupsQuery);
+
+        startupsSnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          startups.push({
+            uid: docSnap.id,
+            displayName: data.displayName || "Unknown Startup",
+            email: data.email || "",
+            phone: data.phone,
+            location: data.location,
+            industry: data.industry,
+            stage: data.stage,
+            teamSize: data.teamSize,
+            techStack: data.techStack,
+            businessModel: data.businessModel,
+            fundingAmount: data.fundingAmount,
+            investmentType: data.investmentType,
+            revenueRange: data.revenueRange,
+            startupBrief: data.startupBrief,
+            targetMarket: data.targetMarket,
+            aiConfidence: data.aiConfidence,
+            isOnboardingCompleted: data.isOnboardingCompleted,
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt,
+            userType: data.userType,
+          });
         });
+
+        if (startups.length === 0) {
+          toast({
+            title: "No Startups Found",
+            description: "No startups are currently registered in the platform.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
+        requestData = buildInvestorRequestPayload(userProfile, startups);
+        endpoint = `${BASE_URL}api/matchmaking/find-startup-matches/`;
+        entityType = "startup";
+      } else {
+        setError("Invalid user type. Must be startup, business, or investor.");
         setLoading(false);
         return;
       }
-      
-      // Use the actual startup data from user profile - NO DUMMY DATA
-      const requestData = {
-        startup: {
-          uid: userProfile?.uid || "startup_" + Date.now(),
-          displayName: userProfile?.displayName || "My Startup",
-          email: userProfile?.email || "startup@example.com",
-          name: userProfile?.displayName || "My Startup",
-          industry: userProfile?.industry || "Technology",
-          stage: userProfile?.stage || "Seed",
-          funding_needed: parseInt(userProfile?.fundingAmount || "1000000"),
-          description: userProfile?.startupBrief || "A startup seeking investment"
-        },
-        investors: investors // Array of all investors from Firebase
-      };
-      
-      console.log('Request data:', requestData);
-      console.log('Startup data:', requestData.startup);
-      console.log('Investors array length:', requestData.investors.length);
-      console.log('Investors array:', requestData.investors);
-      
-      // Simple POST request to your API endpoint
-      const response = await fetch('https://70c23b88793c.ngrok-free.app/api/matchmaking/find-investor-matches/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/plain, */*',
-        },
+
+      setReq(requestData);
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestData),
       });
-      
-      console.log('Response status:', response.status);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.log('Error response body:', errorText);
-        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+        throw new Error(`API error ${response.status}: ${response.statusText}`);
       }
 
-      const responseText = await response.text();
-      console.log('Raw API Response:', responseText);
-      
-      // Check if response is HTML (error page)
-      if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
-        console.log('Received HTML response, likely an error page');
-        setApiResponse({ error: 'HTML response received', raw: responseText });
-        setHasSearched(true);
+      const data = await response.json();
+      console.log("API response:", data);
+
+      if (Array.isArray(data.matches)) {
+        setMatches(data.matches);
+        setCachedMatches(data.matches);
+
+        // Cache the matches locally
+        const auth = getAuth();
+        if (auth.currentUser) {
+          const cacheKey = `${entityType}_matches_${auth.currentUser.uid}`;
+          const cacheData = {
+            matches: data.matches,
+            timestamp: Date.now(),
+          };
+          localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+        }
+
         toast({
-          title: "API Error",
-          description: "The API returned an HTML page instead of data.",
+          title: `${entityType === "investor" ? "Investor" : "Startup"} Matches Found`,
+          description: `Found ${data.matches.length} potential ${entityType}${data.matches.length === 1 ? '' : 's'} for you.`,
+        });
+      } else {
+        toast({
+          title: "Unexpected Response",
+          description: "The matching service returned an unexpected format.",
           variant: "destructive",
         });
-        return;
       }
-
-      // Try to parse as JSON first
-      let data;
-      try {
-        data = JSON.parse(responseText);
-        console.log('Parsed JSON data:', data);
-        
-        // Display EXACT API response - no processing, no dummy data
-        setApiResponse(data);
-      } catch (parseError) {
-        console.log('Failed to parse as JSON, treating as text');
-        
-        // If it's not JSON, display the raw text response
-        setApiResponse({ raw: responseText });
-      }
-      
-      setHasSearched(true);
+    } catch (err) {
+      console.error(err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to find matches";
+      setError(errorMessage);
       toast({
-        title: "API Response Received",
-        description: "Successfully fetched data from the API.",
-      });
-      
-    } catch (error) {
-      console.error('Error fetching investors:', error);
-      
-      setApiResponse({
-        error: 'Failed to fetch from API',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        raw: 'No response received'
-      });
-      setHasSearched(true);
-      toast({
-        title: "API Error",
-        description: `Failed to fetch from API: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        title: "Matching Failed",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -1021,73 +453,336 @@ const BusinessMatchesView = () => {
     }
   };
 
-  const handleContactInvestor = (investor: any) => {
-    toast({
-      title: "Message initiated",
-      description: `You can now message ${investor.displayName || 'this investor'}.`,
-    });
-  };
-
-  return (
-    <div className="container-custom py-8">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Find Investors</h1>
-          <p className="text-gray-600">Connect with investors interested in your business</p>
+  if (profileLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50 flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+          <p className="text-gray-600 font-medium">Loading your profile...</p>
         </div>
       </div>
-      
-      <div className="space-y-6">
-        {/* Search and Find Investors Section */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex-1">
-                <p className="text-sm text-gray-600">Click the button to find investors using your startup profile</p>
+    );
+  }
+
+  const isUserStartup = userProfile && isStartup(userProfile);
+  const isUserInvestor = userProfile && isInvestor(userProfile);
+  const targetEntity = isUserStartup ? "Investors" : "Startups";
+  const targetEntityLower = targetEntity.toLowerCase();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50">
+      {/* Header Section */}
+      <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="flex items-center space-x-3 mb-2">
+            <div className="bg-gradient-to-r from-teal-600 to-cyan-600 p-2 rounded-lg">
+              {isUserStartup ? <Search className="h-6 w-6 text-white" /> : <PiggyBank className="h-6 w-6 text-white" />}
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900">Find {targetEntity}</h1>
+          </div>
+          <p className="text-gray-600 text-lg">
+            {isUserStartup
+              ? "Discover investors that align with your startup's vision and funding needs"
+              : "Find promising startups that match your investment criteria"
+            }
+          </p>
+        </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Error State */}
+        {error && (
+          <Card className="mb-6 border-red-200 bg-red-50">
+            <CardContent className="pt-6">
+              <div className="flex items-center space-x-3">
+                <AlertCircle className="h-5 w-5 text-red-500" />
+                <p className="text-red-700 font-medium">{error}</p>
               </div>
-              <Button 
-                onClick={findInvestors}
-                disabled={loading}
-                className="w-full sm:w-auto"
-              >
-                {loading ? (
+            </CardContent>
+          </Card>
+        )}
+
+        {/* User Profile Card */}
+        {userProfile && (
+          <Card className="mb-8 border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+            <CardHeader className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  {isUserStartup ? <Building2 className="h-6 w-6" /> : <PiggyBank className="h-6 w-6" />}
+                  <div>
+                    <CardTitle className="text-xl">{userProfile.displayName}</CardTitle>
+                    <p className="text-teal-100 text-sm">{userProfile.email}</p>
+                  </div>
+                </div>
+                <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                  {userProfile.userType === "business" ? "Business" : userProfile.userType || "User"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                {isUserStartup ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Finding Investors...
+                    {userProfile.industry && (
+                      <div className="flex items-center space-x-2">
+                        <Briefcase className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm text-gray-700">{userProfile.industry}</span>
+                      </div>
+                    )}
+                    {userProfile.location && (
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm text-gray-700">{userProfile.location}</span>
+                      </div>
+                    )}
+                    {userProfile.fundingAmount && (
+                      <div className="flex items-center space-x-2">
+                        <DollarSign className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm text-gray-700">{userProfile.fundingAmount}</span>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <>
-                    <Search className="h-4 w-4 mr-2" />
-                    Find My Investors
+                    {userProfile.location && (
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm text-gray-700">{userProfile.location}</span>
+                      </div>
+                    )}
+                    {(userProfile as Investor).investmentAmountRange && (
+                      <div className="flex items-center space-x-2">
+                        <DollarSign className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm text-gray-700">{(userProfile as Investor).investmentAmountRange}</span>
+                      </div>
+                    )}
+                    {(userProfile as Investor).preferredIndustries && (userProfile as Investor).preferredIndustries!.length > 0 && (
+                      <div className="flex items-center space-x-2">
+                        <Briefcase className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm text-gray-700">{(userProfile as Investor).preferredIndustries!.slice(0, 2).join(", ")}</span>
+                      </div>
+                    )}
                   </>
                 )}
-              </Button>
-            </div>
-          </CardHeader>
-        </Card>
-
-        {/* API Response Display */}
-        {hasSearched && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold">API Response</h2>
-                  <p className="text-sm text-gray-600">
-                    Response from the API endpoint
-                  </p>
-                </div>
               </div>
-            </CardHeader>
-            
-            <CardContent>
-              {renderApiResponseCards(apiResponse)}
+
+              <div className="flex space-x-2">
+                <Button
+                  onClick={findMatches}
+                  disabled={loading}
+                  className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-semibold py-3 px-6 rounded-lg shadow-lg transition-all duration-200 transform hover:scale-105"
+                  size="lg"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Analyzing Matches...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="mr-2 h-5 w-5" />
+                      Find New {targetEntity}
+                    </>
+                  )}
+                </Button>
+
+                {cachedMatches.length > 0 && (
+                  <Button
+                    onClick={clearCache}
+                    variant="outline"
+                    size="lg"
+                    className="border-gray-300 text-gray-600 hover:bg-gray-50 py-3 px-4 rounded-lg"
+                  >
+                    Clear Cache
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="bg-white rounded-full p-4 shadow-lg mb-4">
+              <Loader2 className="h-12 w-12 animate-spin text-teal-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Finding Your Perfect Matches</h3>
+            <p className="text-gray-600 text-center max-w-md">
+              Our AI is analyzing {targetEntityLower} profiles and matching them with your {isUserStartup ? "startup's" : "investment"} unique profile...
+            </p>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && matches.length === 0 && userProfile && (
+          <div className="text-center py-16">
+            <div className="bg-white rounded-full p-4 shadow-lg inline-block mb-4">
+              <Target className="h-12 w-12 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              {cachedMatches.length > 0 ? "Cache Cleared" : `Ready to Find ${targetEntity}?`}
+            </h3>
+            <p className="text-gray-600 max-w-md mx-auto">
+              {cachedMatches.length > 0
+                ? `Your cached matches have been cleared. Click 'Find New ${targetEntity}' to search again.`
+                : `Click the 'Find New ${targetEntity}' button above to discover ${targetEntityLower} that align with your ${isUserStartup ? "startup's goals and funding requirements" : "investment criteria and preferences"}.`
+              }
+            </p>
+          </div>
+        )}
+
+        {/* Results Header */}
+        {matches.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <TrendingUp className="h-5 w-5 text-teal-600" />
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {targetEntity} Matches ({matches.length})
+                </h2>
+              </div>
+              <Badge variant="outline" className="text-sm font-medium">
+                Sorted by Match Score
+              </Badge>
+            </div>
+            <p className="text-gray-600 mt-1">
+              Based on your {isUserStartup ? "startup" : "investment"} profile, here are {targetEntityLower} most likely to be {isUserStartup ? "interested in your venture" : "a good fit for your portfolio"}
+            </p>
+          </div>
+        )}
+
+        {/* Matches Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {matches.map((match, idx) => (
+            <Card
+              key={idx}
+              className="group hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-0 shadow-lg bg-white/90 backdrop-blur-sm overflow-hidden"
+            >
+              {/* Match Score Header */}
+              <div className={`${getMatchScoreColor(match.match_score)} p-4 text-white`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Star className="h-5 w-5" />
+                    <span className="font-bold text-lg">{match.match_score}%</span>
+                  </div>
+                  <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-xs">
+                    {getMatchScoreLabel(match.match_score)}
+                  </Badge>
+                </div>
+              </div>
+
+              <CardHeader className="pb-3">
+                <CardTitle className="text-xl text-gray-900 group-hover:text-teal-600 transition-colors">
+                  {match.displayName}
+                </CardTitle>
+                <Badge variant="outline" className="w-fit text-xs">
+                  ID: {isStartupMatch(match) ? match.startup_id : (match as InvestorMatch).investor_id}
+                </Badge>
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                {/* Match Reason */}
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    <span className="font-medium text-gray-900">Why this match: </span>
+                    {match.match_reason}
+                  </p>
+                </div>
+
+                {/* Investment Fit */}
+                {match.investment_fit && (
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <DollarSign className="h-4 w-4 text-emerald-600" />
+                      <span className="font-medium text-sm text-gray-900">Investment Fit</span>
+                    </div>
+                    <p className="text-sm text-gray-600 pl-6 leading-relaxed">
+                      {match.investment_fit}
+                    </p>
+                  </div>
+                )}
+
+                {/* Strategic/Industry Fit */}
+                {(match as InvestorMatch).strategic_fit && (
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Target className="h-4 w-4 text-cyan-600" />
+                      <span className="font-medium text-sm text-gray-900">Strategic Fit</span>
+                    </div>
+                    <p className="text-sm text-gray-600 pl-6 leading-relaxed">
+                      {(match as InvestorMatch).strategic_fit}
+                    </p>
+                  </div>
+                )}
+
+                {/* Industry Fit (for startup matches) */}
+                {isStartupMatch(match) && match.industry_fit && (
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Briefcase className="h-4 w-4 text-purple-600" />
+                      <span className="font-medium text-sm text-gray-900">Industry Fit</span>
+                    </div>
+                    <p className="text-sm text-gray-600 pl-6 leading-relaxed">
+                      {match.industry_fit}
+                    </p>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="pt-2 flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 border-teal-200 text-teal-600 hover:bg-teal-50"
+                  >
+                    View Profile
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="flex-1 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white"
+                  >
+                    Connect
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Stats Footer */}
+        {matches.length > 0 && (
+          <div className="mt-12 bg-white rounded-xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <Users className="h-5 w-5 mr-2 text-teal-600" />
+              Match Summary
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-teal-600">{matches.length}</div>
+                <div className="text-sm text-gray-600">Total Matches</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-emerald-600">
+                  {matches.filter(m => m.match_score >= 80).length}
+                </div>
+                <div className="text-sm text-gray-600">Great Matches</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-cyan-600">
+                  {matches.filter(m => m.match_score >= 90).length}
+                </div>
+                <div className="text-sm text-gray-600">Excellent Matches</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-600">
+                  {Math.round(matches.reduce((sum, m) => sum + m.match_score, 0) / matches.length) || 0}%
+                </div>
+                <div className="text-sm text-gray-600">Average Score</div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
   );
-};
-
-export default MatchesContent;
+}
